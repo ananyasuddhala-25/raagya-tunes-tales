@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -12,6 +11,7 @@ interface MusicPlayerProps {
     artist: string;
     cover: string;
     previewUrl?: string;
+    spotifyUri?: string;
   } | null;
 }
 
@@ -24,15 +24,12 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const interval = useRef<number | null>(null);
   
-  // Set up audio element
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
       
-      // Set initial volume
       audioRef.current.volume = volume / 100;
       
-      // Add event listeners
       audioRef.current.addEventListener('ended', () => {
         setIsPlaying(false);
         setProgress(0);
@@ -54,7 +51,6 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
     
     return () => {
-      // Clean up
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute('src');
@@ -63,20 +59,16 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     };
   }, []);
   
-  // Update audio source when song changes
   useEffect(() => {
     if (song && audioRef.current) {
-      // Reset player state
       setProgress(0);
       setIsPlaying(false);
       
-      // Clear any existing interval
       if (interval.current) {
         window.clearInterval(interval.current);
         interval.current = null;
       }
       
-      // Set the new audio source if available
       if (song.previewUrl) {
         audioRef.current.src = song.previewUrl;
         audioRef.current.load();
@@ -90,14 +82,12 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
   }, [song]);
   
-  // Update volume when it changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
     }
   }, [volume]);
   
-  // Update progress while playing
   useEffect(() => {
     if (isPlaying) {
       interval.current = window.setInterval(() => {
@@ -120,13 +110,28 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     };
   }, [isPlaying]);
   
+  const openSpotifyTrack = () => {
+    if (song?.spotifyUri) {
+      window.open(song.spotifyUri, '_blank');
+      toast({
+        title: "Spotify Track",
+        description: "Opening full track on Spotify",
+        variant: "default"
+      });
+    }
+  };
+
   const togglePlayPause = () => {
-    if (!song || !audioRef.current || !song.previewUrl) {
+    if (!song || !audioRef.current) {
       toast({
         title: "Cannot Play",
-        description: "No playable track selected.",
+        description: song?.previewUrl ? "No preview available" : "No song selected",
         variant: "destructive"
       });
+      
+      if (song?.spotifyUri) {
+        openSpotifyTrack();
+      }
       return;
     }
     
@@ -235,6 +240,12 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
           </div>
         )}
       </div>
+      
+      {!song?.previewUrl && song?.spotifyUri && (
+        <div className="text-xs text-muted-foreground text-center pb-1">
+          No preview available. Click play to open on Spotify.
+        </div>
+      )}
     </div>
   );
 }

@@ -26,36 +26,33 @@ const getAccessToken = async (): Promise<string | null> => {
   }
 };
 
-// Search tracks on Spotify
-export const searchTracks = async (query: string) => {
+// Enhanced track searching with full track details
+export const searchTracks = async (query: string, limit: number = 20) => {
   try {
     await getAccessToken();
-    const response = await spotifyApi.searchTracks(query, { limit: 10 });
-    return response.tracks?.items || [];
+    const response = await spotifyApi.searchTracks(query, { limit });
+    
+    // Get full track details to ensure we have preview URLs
+    const trackIds = response.tracks?.items.map(track => track.id) || [];
+    const fullTracksDetails = await Promise.all(
+      trackIds.map(id => getTrack(id))
+    );
+    
+    return fullTracksDetails.filter(track => track && track.preview_url);
   } catch (error) {
     console.error('Error searching tracks:', error);
     return [];
   }
 };
 
-// Get track details by Spotify ID
+// Get track details by Spotify ID with error handling
 export const getTrack = async (trackId: string) => {
   try {
     await getAccessToken();
-    return await spotifyApi.getTrack(trackId);
+    const track = await spotifyApi.getTrack(trackId);
+    return track;
   } catch (error) {
     console.error('Error getting track:', error);
-    return null;
-  }
-};
-
-// Get audio features for a track
-export const getAudioFeatures = async (trackId: string) => {
-  try {
-    await getAccessToken();
-    return await spotifyApi.getAudioFeaturesForTrack(trackId);
-  } catch (error) {
-    console.error('Error getting audio features:', error);
     return null;
   }
 };
@@ -67,8 +64,8 @@ export const transformTrackToSong = (track: SpotifyApi.TrackObjectFull) => {
     title: track.name,
     artist: track.artists.map(artist => artist.name).join(', '),
     cover: track.album.images[0]?.url || '/placeholder.svg',
-    previewUrl: track.preview_url,
-    genre: '', // Spotify doesn't provide genre at the track level
+    previewUrl: track.preview_url || '',
+    genre: track.artists[0]?.name || '', // Fallback genre
     duration: track.duration_ms / 1000, // Convert ms to seconds
     spotifyUri: track.uri
   };

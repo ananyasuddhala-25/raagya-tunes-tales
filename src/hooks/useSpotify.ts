@@ -7,7 +7,7 @@ export function useSpotify() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
-  const search = async (query: string) => {
+  const search = async (query: string, limit: number = 20) => {
     if (!query.trim()) {
       setSearchResults([]);
       return [];
@@ -15,12 +15,26 @@ export function useSpotify() {
     
     setIsLoading(true);
     try {
-      const tracks = await searchTracks(query);
+      const tracks = await searchTracks(query, limit);
       const formattedTracks = tracks.map(track => transformTrackToSong(track));
       
-      setSearchResults(formattedTracks);
+      // Only set results with preview URLs or Spotify URI
+      const playableTracks = formattedTracks.filter(track => 
+        track.previewUrl || track.spotifyUri
+      );
+      
+      setSearchResults(playableTracks);
       setIsLoading(false);
-      return formattedTracks;
+      
+      if (playableTracks.length === 0) {
+        toast({
+          title: "No Playable Tracks",
+          description: "No tracks with preview or Spotify link found.",
+          variant: "default"
+        });
+      }
+      
+      return playableTracks;
     } catch (error) {
       console.error('Failed to search tracks:', error);
       toast({
