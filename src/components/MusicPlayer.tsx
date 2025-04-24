@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { Play, Pause, SkipBack, SkipForward, Volume2, ExternalLink } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface MusicPlayerProps {
   song?: {
@@ -33,6 +33,11 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
       audioRef.current.addEventListener('ended', () => {
         setIsPlaying(false);
         setProgress(0);
+        toast({
+          title: "Preview Ended",
+          description: "Open in Spotify to listen to the full song",
+          variant: "default"
+        });
       });
       
       audioRef.current.addEventListener('loadedmetadata', () => {
@@ -43,10 +48,18 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
         console.error('Audio error:', e);
         toast({
           title: "Playback Error",
-          description: "This track preview is unavailable. Please try another song.",
+          description: "Could not play preview. Try opening in Spotify.",
           variant: "destructive"
         });
         setIsPlaying(false);
+      });
+
+      audioRef.current.addEventListener('playing', () => {
+        toast({
+          title: "Playing Preview",
+          description: "This is a 30-second preview. Open in Spotify for the full song.",
+          variant: "default"
+        });
       });
     }
     
@@ -114,39 +127,42 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     if (song?.spotifyUri) {
       window.open(song.spotifyUri, '_blank');
       toast({
-        title: "Spotify Track",
-        description: "Opening full track on Spotify",
+        title: "Opening Spotify",
+        description: "Listen to the full song on Spotify",
         variant: "default"
       });
     }
   };
 
   const togglePlayPause = () => {
-    if (!song || !audioRef.current) {
+    if (!song) {
       toast({
-        title: "Cannot Play",
-        description: song?.previewUrl ? "No preview available" : "No song selected",
+        title: "No Song Selected",
+        description: "Please select a song to play",
         variant: "destructive"
       });
-      
-      if (song?.spotifyUri) {
-        openSpotifyTrack();
-      }
+      return;
+    }
+    
+    if (!song.previewUrl && song.spotifyUri) {
+      openSpotifyTrack();
       return;
     }
     
     if (isPlaying) {
-      audioRef.current.pause();
+      audioRef.current?.pause();
     } else {
-      audioRef.current.play()
-        .catch(error => {
-          console.error("Playback error:", error);
-          toast({
-            title: "Playback Error",
-            description: "Could not play this track. Please try again later.",
-            variant: "destructive"
+      if (audioRef.current && song.previewUrl) {
+        audioRef.current.play()
+          .catch(error => {
+            console.error("Playback error:", error);
+            toast({
+              title: "Playback Error",
+              description: "Could not play preview. Try opening in Spotify.",
+              variant: "destructive"
+            });
           });
-        });
+      }
     }
     
     setIsPlaying(!isPlaying);
@@ -184,7 +200,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
             
             <div className="flex-1 flex flex-col items-center gap-1">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" disabled>
                   <SkipBack className="h-4 w-4" />
                 </Button>
                 
@@ -197,9 +213,20 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
                   {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                 </Button>
                 
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" disabled>
                   <SkipForward className="h-4 w-4" />
                 </Button>
+
+                {song.spotifyUri && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={openSpotifyTrack}
+                    className="text-spotify-green"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               
               <div className="w-full flex items-center gap-2 px-4">
@@ -241,9 +268,9 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
         )}
       </div>
       
-      {!song?.previewUrl && song?.spotifyUri && (
+      {song && !song.previewUrl && song.spotifyUri && (
         <div className="text-xs text-muted-foreground text-center pb-1">
-          No preview available. Click play to open on Spotify.
+          No preview available. Click the external link to open on Spotify.
         </div>
       )}
     </div>
