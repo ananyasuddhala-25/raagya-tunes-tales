@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 interface MusicPlayerProps {
   song?: {
@@ -10,6 +11,7 @@ interface MusicPlayerProps {
     title: string;
     artist: string;
     cover: string;
+    previewUrl?: string;
   } | null;
 }
 
@@ -19,15 +21,53 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(80);
   
-  // In a real app, we'd use the actual audio file
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const interval = useRef<number | null>(null);
   
-  // In a real app with Spotify API, this would be where we load the actual song
+  // Set up audio element
   useEffect(() => {
-    if (song) {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      
+      // Set initial volume
+      audioRef.current.volume = volume / 100;
+      
+      // Add event listeners
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlaying(false);
+        setProgress(0);
+      });
+      
+      audioRef.current.addEventListener('loadedmetadata', () => {
+        setDuration(audioRef.current ? audioRef.current.duration : 0);
+      });
+      
+      audioRef.current.addEventListener('error', (e) => {
+        console.error('Audio error:', e);
+        toast({
+          title: "Playback Error",
+          description: "This track preview is unavailable. Please try another song.",
+          variant: "destructive"
+        });
+        setIsPlaying(false);
+      });
+    }
+    
+    return () => {
+      // Clean up
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+      }
+    };
+  }, []);
+  
+  // Update audio source when song changes
+  useEffect(() => {
+    if (song && audioRef.current) {
+      // Reset player state
       setProgress(0);
-      setDuration(180); // Mock 3 minutes duration
       setIsPlaying(false);
       
       // Clear any existing interval
@@ -35,32 +75,82 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
         window.clearInterval(interval.current);
         interval.current = null;
       }
+      
+      // Set the new audio source if available
+      if (song.previewUrl) {
+        audioRef.current.src = song.previewUrl;
+        audioRef.current.load();
+      } else {
+        toast({
+          title: "Preview Unavailable",
+          description: "This track doesn't have a preview available.",
+          variant: "destructive"
+        });
+      }
     }
   }, [song]);
   
-  const togglePlayPause = () => {
-    if (!song) return;
-    
-    setIsPlaying(!isPlaying);
-    
-    if (!isPlaying) {
-      // Start progress interval
+  // Update volume when it changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
+  }, [volume]);
+  
+  // Update progress while playing
+  useEffect(() => {
+    if (isPlaying) {
       interval.current = window.setInterval(() => {
-        setProgress(prev => {
-          if (prev >= duration) {
-            window.clearInterval(interval.current!);
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 1;
-        });
+        if (audioRef.current) {
+          setProgress(audioRef.current.currentTime);
+        }
       }, 1000);
     } else {
-      // Clear interval
       if (interval.current) {
         window.clearInterval(interval.current);
         interval.current = null;
       }
+    }
+    
+    return () => {
+      if (interval.current) {
+        window.clearInterval(interval.current);
+        interval.current = null;
+      }
+    };
+  }, [isPlaying]);
+  
+  const togglePlayPause = () => {
+    if (!song || !audioRef.current || !song.previewUrl) {
+      toast({
+        title: "Cannot Play",
+        description: "No playable track selected.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play()
+        .catch(error => {
+          console.error("Playback error:", error);
+          toast({
+            title: "Playback Error",
+            description: "Could not play this track. Please try again later.",
+            variant: "destructive"
+          });
+        });
+    }
+    
+    setIsPlaying(!isPlaying);
+  };
+  
+  const handleProgressChange = ([value]: number[]) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value;
+      setProgress(value);
     }
   };
   
@@ -112,12 +202,14 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
                   {formatTime(progress)}
                 </span>
                 
-                <div className="flex-1 progress-bar">
-                  <div 
-                    className="progress-bar-fill" 
-                    style={{ width: `${(progress / duration) * 100}%` }}
-                  ></div>
-                </div>
+                <Slider
+                  value={[progress]}
+                  min={0}
+                  max={duration || 100}
+                  step={1}
+                  onValueChange={handleProgressChange}
+                  className="flex-1"
+                />
                 
                 <span className="text-xs text-muted-foreground w-8">
                   {formatTime(duration)}

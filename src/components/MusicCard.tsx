@@ -7,7 +7,8 @@ interface Song {
   title: string;
   artist: string;
   cover: string;
-  genre: string;
+  genre?: string;
+  previewUrl?: string;
 }
 
 interface MusicCardProps {
@@ -36,6 +37,7 @@ export function MusicCard({ song, onPlay, onGenerateStory }: MusicCardProps) {
               variant="secondary"
               className="flex-1"
               onClick={() => onPlay(song)}
+              disabled={!song.previewUrl}
             >
               <Play className="h-4 w-4 mr-1" /> Play
             </Button>

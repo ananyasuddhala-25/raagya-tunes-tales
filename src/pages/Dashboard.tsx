@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MusicCard } from '@/components/MusicCard';
@@ -9,7 +9,8 @@ import { ChatbotDialog } from '@/components/ChatbotDialog';
 import { mockSongs, mockGenres } from '@/data/mockData';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
+import { useSpotify } from '@/hooks/useSpotify';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("discover");
@@ -17,8 +18,20 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentSong, setCurrentSong] = useState<any>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const { search, searchResults, isLoading } = useSpotify();
   
   const navigate = useNavigate();
+  
+  // Search with debounce
+  useEffect(() => {
+    const debounceId = setTimeout(() => {
+      if (searchTerm) {
+        search(searchTerm);
+      }
+    }, 500);
+    
+    return () => clearTimeout(debounceId);
+  }, [searchTerm, search]);
 
   const handlePlaySong = (song: any) => {
     setCurrentSong(song);
@@ -28,20 +41,22 @@ export default function Dashboard() {
     navigate(`/stories/${song.id}`);
   };
 
-  const filteredSongs = mockSongs.filter(song => {
-    // Filter by genre
-    if (selectedGenre !== "All" && song.genre !== selectedGenre) {
-      return false;
-    }
-    
-    // Filter by search term
-    if (searchTerm && !song.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !song.artist.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
-    }
-    
-    return true;
-  });
+  // Use search results if we have them, otherwise fall back to filtered mock data
+  const displaySongs = searchResults.length > 0 ? searchResults : 
+    mockSongs.filter(song => {
+      // Filter by genre
+      if (selectedGenre !== "All" && song.genre !== selectedGenre) {
+        return false;
+      }
+      
+      // Filter by search term
+      if (searchTerm && !song.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !song.artist.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      return true;
+    });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -53,11 +68,16 @@ export default function Dashboard() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search songs or artists..."
+              placeholder="Search Spotify..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {isLoading && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </div>
           
           <div className="flex overflow-x-auto gap-2 pb-2 max-w-full no-scrollbar">
@@ -86,7 +106,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold">Discover New Music</h2>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-4">
-              {filteredSongs.map(song => (
+              {displaySongs.map(song => (
                 <MusicCard 
                   key={song.id}
                   song={song}
@@ -96,7 +116,7 @@ export default function Dashboard() {
               ))}
             </div>
             
-            {filteredSongs.length === 0 && (
+            {displaySongs.length === 0 && searchTerm && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">No songs match your search criteria</p>
               </div>
@@ -108,7 +128,7 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-2">Most played songs this week</p>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6">
-              {filteredSongs.slice(0, 6).map(song => (
+              {displaySongs.slice(0, 6).map(song => (
                 <MusicCard 
                   key={song.id}
                   song={song}
@@ -124,7 +144,7 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-2">Based on your listening habits</p>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6">
-              {filteredSongs.slice(6).map(song => (
+              {displaySongs.slice(6).map(song => (
                 <MusicCard 
                   key={song.id}
                   song={song}

@@ -1,1 +1,5 @@
+
 project_id = "almzsqsyejvakwbzcdbp"
+
+[functions.get-spotify-token]
+verify_jwt = false
