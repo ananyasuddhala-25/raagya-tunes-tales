@@ -1,4 +1,3 @@
-
 import SpotifyWebApi from 'spotify-web-api-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,7 +29,14 @@ const getAccessToken = async (): Promise<string | null> => {
 export const searchTracks = async (query: string, limit: number = 20) => {
   try {
     await getAccessToken();
-    const response = await spotifyApi.searchTracks(query, { limit });
+    
+    // Enhanced search to include market and popularity parameters
+    const response = await spotifyApi.searchTracks(query, { 
+      limit,
+      market: 'IN', // Include Indian market
+      // Add multiple search terms for better Indian music results
+      q: `${query} OR language:hindi OR language:telugu`
+    });
     
     // Get full track details to ensure we have preview URLs
     const trackIds = response.tracks?.items.map(track => track.id) || [];
@@ -38,7 +44,7 @@ export const searchTracks = async (query: string, limit: number = 20) => {
       trackIds.map(id => getTrack(id))
     );
     
-    return fullTracksDetails.filter(track => track && track.preview_url);
+    return fullTracksDetails.filter(track => track !== null);
   } catch (error) {
     console.error('Error searching tracks:', error);
     return [];

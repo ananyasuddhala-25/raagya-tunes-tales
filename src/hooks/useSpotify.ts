@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { searchTracks, transformTrackToSong } from '@/integrations/spotify/spotify';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 export function useSpotify() {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,23 +18,19 @@ export function useSpotify() {
       const tracks = await searchTracks(query, limit);
       const formattedTracks = tracks.map(track => transformTrackToSong(track));
       
-      // Only set results with preview URLs or Spotify URI
-      const playableTracks = formattedTracks.filter(track => 
-        track.previewUrl || track.spotifyUri
-      );
-      
-      setSearchResults(playableTracks);
+      // Include both tracks with and without previews, since we can open them in Spotify
+      setSearchResults(formattedTracks);
       setIsLoading(false);
       
-      if (playableTracks.length === 0) {
+      if (formattedTracks.length === 0) {
         toast({
-          title: "No Playable Tracks",
-          description: "No tracks with preview or Spotify link found.",
+          title: "No Tracks Found",
+          description: "Try searching with different keywords",
           variant: "default"
         });
       }
       
-      return playableTracks;
+      return formattedTracks;
     } catch (error) {
       console.error('Failed to search tracks:', error);
       toast({
