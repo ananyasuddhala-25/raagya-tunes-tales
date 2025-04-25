@@ -1,3 +1,4 @@
+
 import SpotifyWebApi from 'spotify-web-api-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,6 +15,7 @@ const getAccessToken = async (): Promise<string | null> => {
     }
     
     if (data && data.access_token) {
+      console.log('Got Spotify access token');
       spotifyApi.setAccessToken(data.access_token);
       return data.access_token;
     }
@@ -28,7 +30,13 @@ const getAccessToken = async (): Promise<string | null> => {
 // Enhanced track searching with full track details
 export const searchTracks = async (query: string, limit: number = 20) => {
   try {
-    await getAccessToken();
+    const token = await getAccessToken();
+    if (!token) {
+      console.error('No Spotify token available');
+      return [];
+    }
+    
+    console.log(`Searching for: "${query}" with limit ${limit}`);
     
     // Enhanced search to include market and popularity parameters
     const response = await spotifyApi.searchTracks(query, { 
@@ -38,13 +46,18 @@ export const searchTracks = async (query: string, limit: number = 20) => {
       q: `${query} OR language:hindi OR language:telugu`
     });
     
+    console.log(`Found ${response.tracks?.items.length || 0} tracks in search`);
+    
     // Get full track details to ensure we have preview URLs
     const trackIds = response.tracks?.items.map(track => track.id) || [];
     const fullTracksDetails = await Promise.all(
       trackIds.map(id => getTrack(id))
     );
     
-    return fullTracksDetails.filter(track => track !== null);
+    const validTracks = fullTracksDetails.filter(track => track !== null);
+    console.log(`Returning ${validTracks.length} valid tracks`);
+    
+    return validTracks;
   } catch (error) {
     console.error('Error searching tracks:', error);
     return [];
@@ -58,14 +71,14 @@ export const getTrack = async (trackId: string) => {
     const track = await spotifyApi.getTrack(trackId);
     return track;
   } catch (error) {
-    console.error('Error getting track:', error);
+    console.error(`Error getting track ${trackId}:`, error);
     return null;
   }
 };
 
 // Helper to transform Spotify track data to our app format
 export const transformTrackToSong = (track: SpotifyApi.TrackObjectFull) => {
-  return {
+  const song = {
     id: track.id,
     title: track.name,
     artist: track.artists.map(artist => artist.name).join(', '),
@@ -75,4 +88,7 @@ export const transformTrackToSong = (track: SpotifyApi.TrackObjectFull) => {
     duration: track.duration_ms / 1000, // Convert ms to seconds
     spotifyUri: track.uri
   };
+  
+  console.log(`Transformed track: ${song.title} by ${song.artist}, preview: ${song.previewUrl ? 'Available' : 'Not available'}`);
+  return song;
 };

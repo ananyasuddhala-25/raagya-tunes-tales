@@ -16,6 +16,8 @@ serve(async (req) => {
   }
   
   try {
+    console.log("Spotify token request received");
+    
     // Make sure we have the credentials
     if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
       console.error("Missing Spotify credentials");
@@ -39,6 +41,19 @@ serve(async (req) => {
     });
 
     const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("Error response from Spotify:", data);
+      return new Response(
+        JSON.stringify({ error: data.error || "Failed to get Spotify token" }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    console.log("Successfully obtained Spotify token");
     
     // Return the access token with cors headers
     return new Response(

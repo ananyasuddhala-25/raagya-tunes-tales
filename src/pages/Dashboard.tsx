@@ -22,10 +22,17 @@ export default function Dashboard() {
   
   const navigate = useNavigate();
   
+  // Initial Spotify search for popular songs
+  useEffect(() => {
+    // Search for popular Indian songs on initial load
+    search("popular hits hindi telugu");
+  }, []);
+  
   // Search with debounce
   useEffect(() => {
     const debounceId = setTimeout(() => {
       if (searchTerm) {
+        console.log('Searching for:', searchTerm);
         search(searchTerm);
       }
     }, 500);
@@ -34,6 +41,8 @@ export default function Dashboard() {
   }, [searchTerm, search]);
 
   const handlePlaySong = (song: any) => {
+    console.log('Playing song:', song.title);
+    console.log('Preview URL:', song.previewUrl);
     setCurrentSong(song);
   };
 

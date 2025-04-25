@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -24,6 +25,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const interval = useRef<number | null>(null);
   
+  // Initialize audio element once
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -55,6 +57,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
       });
 
       audioRef.current.addEventListener('playing', () => {
+        console.log('Audio started playing');
         toast({
           title: "Playing Preview",
           description: "This is a 30-second preview. Open in Spotify for the full song.",
@@ -72,8 +75,12 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     };
   }, []);
   
+  // Handle song changes
   useEffect(() => {
     if (song && audioRef.current) {
+      console.log('Loading song:', song.title);
+      console.log('Preview URL:', song.previewUrl);
+      
       setProgress(0);
       setIsPlaying(false);
       
@@ -85,7 +92,9 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
       if (song.previewUrl) {
         audioRef.current.src = song.previewUrl;
         audioRef.current.load();
+        console.log('Audio source set:', audioRef.current.src);
       } else {
+        console.log('No preview URL available');
         toast({
           title: "Preview Unavailable",
           description: "This track doesn't have a preview available.",
@@ -95,12 +104,14 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
   }, [song]);
   
+  // Handle volume changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
     }
   }, [volume]);
   
+  // Progress tracking
   useEffect(() => {
     if (isPlaying) {
       interval.current = window.setInterval(() => {
@@ -123,6 +134,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     };
   }, [isPlaying]);
   
+  // Open song in Spotify
   const openSpotifyTrack = () => {
     if (song?.spotifyUri) {
       window.open(song.spotifyUri, '_blank');
@@ -134,6 +146,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
   };
 
+  // Toggle play/pause
   const togglePlayPause = () => {
     if (!song) {
       toast({
@@ -150,9 +163,11 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
     
     if (isPlaying) {
+      console.log('Pausing audio');
       audioRef.current?.pause();
     } else {
       if (audioRef.current && song.previewUrl) {
+        console.log('Playing audio');
         audioRef.current.play()
           .catch(error => {
             console.error("Playback error:", error);
@@ -168,6 +183,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     setIsPlaying(!isPlaying);
   };
   
+  // Handle progress bar changes
   const handleProgressChange = ([value]: number[]) => {
     if (audioRef.current) {
       audioRef.current.currentTime = value;
@@ -175,12 +191,14 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
     }
   };
   
+  // Format time for display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
   
+  // Render component
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t z-30">
       <div className="container flex items-center py-2">
@@ -222,7 +240,7 @@ export function MusicPlayer({ song }: MusicPlayerProps) {
                     variant="ghost"
                     size="icon"
                     onClick={openSpotifyTrack}
-                    className="text-spotify-green"
+                    className="text-green-600"
                   >
                     <ExternalLink className="h-4 w-4" />
                   </Button>
