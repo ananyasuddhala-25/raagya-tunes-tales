@@ -17,6 +17,7 @@ serve(async (req) => {
   
   try {
     console.log("Spotify token request received");
+    const { authCode } = await req.json();
     
     // Make sure we have the credentials
     if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
@@ -30,24 +31,44 @@ serve(async (req) => {
       );
     }
 
-    // Get Spotify access token using client credentials flow
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
-      },
-      body: 'grant_type=client_credentials'
-    });
-
-    const data = await response.json();
+    let tokenResponse;
     
-    if (!response.ok) {
+    if (authCode) {
+      // Handle user authentication flow
+      const redirectUri = 'http://localhost:5173/callback'; // Update this based on your app's URL
+      
+      tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: authCode,
+          redirect_uri: redirectUri
+        })
+      });
+    } else {
+      // Client credentials flow for search and preview
+      tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
+        },
+        body: 'grant_type=client_credentials'
+      });
+    }
+
+    const data = await tokenResponse.json();
+    
+    if (!tokenResponse.ok) {
       console.error("Error response from Spotify:", data);
       return new Response(
         JSON.stringify({ error: data.error || "Failed to get Spotify token" }),
         { 
-          status: response.status, 
+          status: tokenResponse.status, 
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );
@@ -55,7 +76,6 @@ serve(async (req) => {
     
     console.log("Successfully obtained Spotify token");
     
-    // Return the access token with cors headers
     return new Response(
       JSON.stringify(data),
       { 
@@ -65,7 +85,6 @@ serve(async (req) => {
     );
     
   } catch (error) {
-    // Handle any errors
     console.error("Error getting Spotify token:", error);
     return new Response(
       JSON.stringify({ error: error.message }),

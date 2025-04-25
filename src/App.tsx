@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import StoriesPage from "./pages/StoriesPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import NotFound from "./pages/NotFound";
+import SpotifyCallback from "./pages/SpotifyCallback";
 
 // Add framer-motion
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +35,7 @@ const App = () => (
                 <Route path="/stories" element={<StoriesPage />} />
                 <Route path="/stories/:songId" element={<StoriesPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/callback" element={<SpotifyCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AnimatePresence>

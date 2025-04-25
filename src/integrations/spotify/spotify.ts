@@ -3,11 +3,14 @@ import SpotifyWebApi from 'spotify-web-api-js';
 import { supabase } from '@/integrations/supabase/client';
 
 const spotifyApi = new SpotifyWebApi();
+const SPOTIFY_CLIENT_ID = "dd8b5d00327b4d4f802137f8c306fd53";
 
 // Fetch Spotify access token from Supabase edge function
-const getAccessToken = async (): Promise<string | null> => {
+const getAccessToken = async (authCode?: string): Promise<string | null> => {
   try {
-    const { data, error } = await supabase.functions.invoke('get-spotify-token', {});
+    const { data, error } = await supabase.functions.invoke('get-spotify-token', {
+      body: { authCode }
+    });
     
     if (error) {
       console.error('Error getting Spotify token:', error);
@@ -27,6 +30,22 @@ const getAccessToken = async (): Promise<string | null> => {
   }
 };
 
+// Function to initiate Spotify authentication
+export const initiateSpotifyAuth = () => {
+  const scopes = [
+    'user-read-private',
+    'user-read-email',
+    'user-read-playback-state',
+    'user-modify-playback-state',
+    'streaming'
+  ];
+  
+  const redirectUri = 'http://localhost:5173/callback';
+  const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes.join(' '))}`;
+  
+  window.location.href = authUrl;
+};
+
 // Enhanced track searching with full track details
 export const searchTracks = async (query: string, limit: number = 20) => {
   try {
@@ -38,17 +57,15 @@ export const searchTracks = async (query: string, limit: number = 20) => {
     
     console.log(`Searching for: "${query}" with limit ${limit}`);
     
-    // Enhanced search to include market and popularity parameters
     const response = await spotifyApi.searchTracks(query, { 
       limit,
-      market: 'IN', // Include Indian market
-      // Add multiple search terms for better Indian music results
-      q: `${query} OR language:hindi OR language:telugu`
+      market: 'IN',
+      q: `${query}`
     });
     
     console.log(`Found ${response.tracks?.items.length || 0} tracks in search`);
     
-    // Get full track details to ensure we have preview URLs
+    // Get full track details
     const trackIds = response.tracks?.items.map(track => track.id) || [];
     const fullTracksDetails = await Promise.all(
       trackIds.map(id => getTrack(id))
@@ -84,11 +101,11 @@ export const transformTrackToSong = (track: SpotifyApi.TrackObjectFull) => {
     artist: track.artists.map(artist => artist.name).join(', '),
     cover: track.album.images[0]?.url || '/placeholder.svg',
     previewUrl: track.preview_url || '',
-    genre: track.artists[0]?.name || '', // Fallback genre
-    duration: track.duration_ms / 1000, // Convert ms to seconds
+    genre: track.artists[0]?.name || '',
+    duration: track.duration_ms / 1000,
     spotifyUri: track.uri
   };
   
-  console.log(`Transformed track: ${song.title} by ${song.artist}, preview: ${song.previewUrl ? 'Available' : 'Not available'}`);
+  console.log(`Transformed track: ${song.title} by ${song.artist}`);
   return song;
 };
