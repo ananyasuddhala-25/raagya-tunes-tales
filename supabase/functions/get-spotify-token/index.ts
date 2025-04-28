@@ -17,7 +17,7 @@ serve(async (req) => {
   
   try {
     console.log("Spotify token request received");
-    const { authCode } = await req.json();
+    const { authCode, refreshToken } = await req.json();
     
     // Make sure we have the credentials
     if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
@@ -37,9 +37,27 @@ serve(async (req) => {
 
     let tokenResponse;
     
-    if (authCode) {
+    if (refreshToken) {
+      // Handle token refresh flow
+      console.log("Using refresh token flow");
+      const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
+      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
+
+      tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': authHeader
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken
+        })
+      });
+    } else if (authCode) {
       // Handle user authentication flow
-      const redirectUri = 'http://localhost:5173/callback'; // Update this based on your app's URL
+      // Use the actual URL from your app
+      const redirectUri = `${req.headers.get("origin")}/callback` || 'http://localhost:5173/callback'; 
       
       console.log("Using authorization code flow");
       const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;

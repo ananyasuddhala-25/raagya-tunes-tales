@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Dialog,
   DialogContent, 
@@ -10,12 +10,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSpotify } from '@/hooks/useSpotify';
+import { MusicCard } from '@/components/MusicCard';
+import { MusicPlayer } from '@/components/MusicPlayer';
+import { Loader2 } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  songSuggestions?: any[];
 }
 
 interface ChatbotDialogProps {
@@ -34,8 +39,11 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [currentSong, setCurrentSong] = useState<any>(null);
+  
+  const { search, searchResults, isLoading, connectToSpotify } = useSpotify();
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     
     // Add user message
@@ -50,26 +58,47 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
     setInput('');
     setIsTyping(true);
     
-    // Simulate AI response
-    setTimeout(() => {
-      const botResponses = [
-        "Based on your taste, I think you'll love 'Dreamscape' by Astral Harmony. It's got those vibes you're looking for!",
-        "Have you tried 'Midnight Groove' by Lunar Beats? It matches your music preferences perfectly.",
-        "I'd recommend 'Ocean Waves' by Serene Sounds. It's gaining popularity among listeners with similar taste.",
-        "Your description reminds me of 'Electric Dreams' by Synthwave Collective. Give it a listen!",
-        "Based on what you said, 'Mystic Journey' by Ethereal Echoes might be just what you're looking for."
-      ];
+    // Search for songs based on user input
+    try {
+      const results = await search(input, 5);
       
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: botResponses[Math.floor(Math.random() * botResponses.length)],
-        sender: 'bot',
-        timestamp: new Date()
-      };
+      setTimeout(() => {
+        // Create bot response with song suggestions
+        const botResponses = [
+          `Based on your request for "${input}", here are some songs you might enjoy:`,
+          `I found some great tracks that match your taste for "${input}":`,
+          `Here are some recommendations for "${input}" that I think you'll love:`,
+          `For someone interested in "${input}", I'd suggest these songs:`,
+          `Looking for "${input}"? Check out these tracks:`
+        ];
+        
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          text: botResponses[Math.floor(Math.random() * botResponses.length)],
+          sender: 'bot',
+          timestamp: new Date(),
+          songSuggestions: results.length > 0 ? results : undefined
+        };
+        
+        setMessages(prev => [...prev, botMessage]);
+        setIsTyping(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Error searching for songs:', error);
       
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 1500);
+      // Error response
+      setTimeout(() => {
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          text: "I'm having trouble finding songs right now. Please try again later or connect to Spotify for better recommendations.",
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, botMessage]);
+        setIsTyping(false);
+      }, 1000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -78,19 +107,47 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
     }
   };
 
+  const handlePlaySong = (song: any) => {
+    setCurrentSong(song);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md md:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Music Assistant</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Music Assistant</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={connectToSpotify}
+              className="text-green-600 border-green-600 hover:bg-green-100 hover:text-green-700"
+            >
+              Connect to Spotify
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col h-[400px]">
+        <div className="flex flex-col h-[500px]">
           <ScrollArea className="flex-1 pr-4">
             <div className="flex flex-col gap-3 py-4">
               {messages.map(msg => (
-                <div key={msg.id} className={`chat-bubble ${msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'}`}>
-                  {msg.text}
+                <div key={msg.id} className="flex flex-col gap-2">
+                  <div className={`chat-bubble ${msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'}`}>
+                    {msg.text}
+                  </div>
+                  
+                  {msg.songSuggestions && msg.songSuggestions.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {msg.songSuggestions.map(song => (
+                        <MusicCard 
+                          key={song.id} 
+                          song={song}
+                          onPlay={handlePlaySong}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {isTyping && (
@@ -98,6 +155,11 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
                   <span className="animate-pulse">•</span>
                   <span className="animate-pulse delay-100">•</span>
                   <span className="animate-pulse delay-200">•</span>
+                </div>
+              )}
+              {isLoading && (
+                <div className="flex justify-center my-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 </div>
               )}
             </div>
@@ -109,13 +171,19 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about music recommendations..."
+                placeholder="Ask for music recommendations..."
                 className="flex-1"
               />
               <Button onClick={handleSend} disabled={isTyping}>Send</Button>
             </div>
           </DialogFooter>
         </div>
+        
+        {currentSong && (
+          <div className="mt-4 pt-4 border-t">
+            <MusicPlayer song={currentSong} />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

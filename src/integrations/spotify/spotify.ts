@@ -20,6 +20,18 @@ export const getAccessToken = async (authCode?: string): Promise<string | null> 
     if (data && data.access_token) {
       console.log('Got Spotify access token');
       spotifyApi.setAccessToken(data.access_token);
+      
+      // Store the token in local storage for persistence
+      if (data.expires_in) {
+        const expiresAt = new Date().getTime() + (data.expires_in * 1000);
+        localStorage.setItem('spotify_token', data.access_token);
+        localStorage.setItem('spotify_token_expires', expiresAt.toString());
+        
+        if (data.refresh_token) {
+          localStorage.setItem('spotify_refresh_token', data.refresh_token);
+        }
+      }
+      
       return data.access_token;
     }
     
@@ -30,6 +42,45 @@ export const getAccessToken = async (authCode?: string): Promise<string | null> 
   }
 };
 
+// Check if token is stored and still valid
+const getStoredToken = async (): Promise<string | null> => {
+  const token = localStorage.getItem('spotify_token');
+  const expiresAtStr = localStorage.getItem('spotify_token_expires');
+  
+  if (token && expiresAtStr) {
+    const expiresAt = parseInt(expiresAtStr);
+    
+    // If token is expired, try to refresh it
+    if (expiresAt <= new Date().getTime()) {
+      const refreshToken = localStorage.getItem('spotify_refresh_token');
+      
+      if (refreshToken) {
+        try {
+          const { data, error } = await supabase.functions.invoke('get-spotify-token', {
+            body: { refreshToken }
+          });
+          
+          if (!error && data && data.access_token) {
+            return data.access_token;
+          }
+        } catch (error) {
+          console.error('Failed to refresh token:', error);
+        }
+        
+        // Clear invalid tokens
+        localStorage.removeItem('spotify_token');
+        localStorage.removeItem('spotify_token_expires');
+        localStorage.removeItem('spotify_refresh_token');
+        return null;
+      }
+    }
+    
+    return token;
+  }
+  
+  return null;
+};
+
 // Function to initiate Spotify authentication
 export const initiateSpotifyAuth = () => {
   const scopes = [
@@ -37,30 +88,51 @@ export const initiateSpotifyAuth = () => {
     'user-read-email',
     'user-read-playback-state',
     'user-modify-playback-state',
-    'streaming'
+    'user-read-currently-playing',
+    'streaming',
+    'user-library-read',
+    'user-library-modify',
+    'user-top-read',
+    'playlist-read-private',
+    'playlist-modify-public',
+    'playlist-modify-private'
   ];
   
-  const redirectUri = 'http://localhost:5173/callback';
+  // Update with your app's actual URL
+  const redirectUri = window.location.origin + '/callback';
   const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes.join(' '))}`;
   
   window.location.href = authUrl;
 };
 
+// Check if user is connected to Spotify
+export const isConnectedToSpotify = async (): Promise<boolean> => {
+  const token = await getStoredToken();
+  return !!token;
+};
+
 // Enhanced track searching with full track details
 export const searchTracks = async (query: string, limit: number = 20) => {
   try {
-    const token = await getAccessToken();
+    // Try to use stored token first
+    let token = await getStoredToken();
+    
+    // If no stored token, get a new one
+    if (!token) {
+      token = await getAccessToken();
+    }
+    
     if (!token) {
       console.error('No Spotify token available');
       return [];
     }
     
+    spotifyApi.setAccessToken(token);
     console.log(`Searching for: "${query}" with limit ${limit}`);
     
     const response = await spotifyApi.searchTracks(query, { 
       limit,
       market: 'IN',
-      q: `${query}`
     });
     
     console.log(`Found ${response.tracks?.items.length || 0} tracks in search`);
@@ -84,12 +156,60 @@ export const searchTracks = async (query: string, limit: number = 20) => {
 // Get track details by Spotify ID with error handling
 export const getTrack = async (trackId: string) => {
   try {
-    await getAccessToken();
+    // Try to use stored token first
+    let token = await getStoredToken();
+    
+    // If no stored token, get a new one
+    if (!token) {
+      token = await getAccessToken();
+    }
+    
+    if (token) {
+      spotifyApi.setAccessToken(token);
+    }
+    
     const track = await spotifyApi.getTrack(trackId);
     return track;
   } catch (error) {
     console.error(`Error getting track ${trackId}:`, error);
     return null;
+  }
+};
+
+// Get recommendations based on tracks, artists, or genres
+export const getRecommendations = async (params: {
+  seed_tracks?: string[],
+  seed_artists?: string[],
+  seed_genres?: string[],
+  limit?: number
+}) => {
+  try {
+    // Try to use stored token first
+    let token = await getStoredToken();
+    
+    // If no stored token, get a new one
+    if (!token) {
+      token = await getAccessToken();
+    }
+    
+    if (!token) {
+      console.error('No Spotify token available');
+      return [];
+    }
+    
+    spotifyApi.setAccessToken(token);
+    
+    const recommendations = await spotifyApi.getRecommendations({
+      limit: params.limit || 20,
+      seed_tracks: params.seed_tracks || [],
+      seed_artists: params.seed_artists || [],
+      seed_genres: params.seed_genres || []
+    });
+    
+    return recommendations.tracks || [];
+  } catch (error) {
+    console.error('Error getting recommendations:', error);
+    return [];
   }
 };
 
