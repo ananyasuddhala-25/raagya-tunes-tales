@@ -1,8 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
-const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID") || "dd8b5d00327b4d4f802137f8c306fd53";
+const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET") || "2a22623b5c3241ff8780144f57643be6";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +32,7 @@ serve(async (req) => {
     }
 
     // Log credential lengths for debugging
-    console.log(`Client ID length: ${SPOTIFY_CLIENT_ID.length}`);
+    console.log(`Client ID: ${SPOTIFY_CLIENT_ID}`);
     console.log(`Client Secret length: ${SPOTIFY_CLIENT_SECRET.length}`);
 
     let tokenResponse;
@@ -41,8 +41,7 @@ serve(async (req) => {
       // Handle token refresh flow
       console.log("Using refresh token flow");
       const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
-      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
-
+      
       tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
@@ -60,9 +59,9 @@ serve(async (req) => {
       const redirectUri = `${req.headers.get("origin")}/callback` || 'http://localhost:5173/callback'; 
       
       console.log("Using authorization code flow");
+      console.log(`Redirect URI: ${redirectUri}`);
       const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
-      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
-
+      
       tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
@@ -79,8 +78,7 @@ serve(async (req) => {
       // Client credentials flow for search and preview
       console.log("Using client credentials flow");
       const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
-      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
-
+      
       tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {

@@ -8,6 +8,7 @@ const SPOTIFY_CLIENT_ID = "dd8b5d00327b4d4f802137f8c306fd53";
 // Fetch Spotify access token from Supabase edge function
 export const getAccessToken = async (authCode?: string): Promise<string | null> => {
   try {
+    console.log("Getting Spotify access token");
     const { data, error } = await supabase.functions.invoke('get-spotify-token', {
       body: { authCode }
     });
@@ -114,11 +115,14 @@ export const isConnectedToSpotify = async (): Promise<boolean> => {
 // Enhanced track searching with full track details
 export const searchTracks = async (query: string, limit: number = 20) => {
   try {
+    console.log(`Starting search for: "${query}"`);
+    
     // Try to use stored token first
     let token = await getStoredToken();
     
     // If no stored token, get a new one
     if (!token) {
+      console.log("No stored token, getting new one");
       token = await getAccessToken();
     }
     
@@ -138,15 +142,12 @@ export const searchTracks = async (query: string, limit: number = 20) => {
     console.log(`Found ${response.tracks?.items.length || 0} tracks in search`);
     
     // Get full track details
-    const trackIds = response.tracks?.items.map(track => track.id) || [];
-    const fullTracksDetails = await Promise.all(
-      trackIds.map(id => getTrack(id))
-    );
+    const tracks = response.tracks?.items || [];
     
-    const validTracks = fullTracksDetails.filter(track => track !== null);
-    console.log(`Returning ${validTracks.length} valid tracks`);
+    // Return the tracks directly without fetching additional details
+    console.log(`Returning ${tracks.length} tracks`);
     
-    return validTracks;
+    return tracks;
   } catch (error) {
     console.error('Error searching tracks:', error);
     return [];
@@ -215,6 +216,11 @@ export const getRecommendations = async (params: {
 
 // Helper to transform Spotify track data to our app format
 export const transformTrackToSong = (track: SpotifyApi.TrackObjectFull) => {
+  if (!track) {
+    console.error('Attempted to transform undefined track');
+    return null;
+  }
+  
   const song = {
     id: track.id,
     title: track.name,

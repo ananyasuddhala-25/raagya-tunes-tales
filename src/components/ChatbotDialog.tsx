@@ -14,6 +14,7 @@ import { useSpotify } from '@/hooks/useSpotify';
 import { MusicCard } from '@/components/MusicCard';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface ChatMessage {
   id: string;
@@ -60,7 +61,9 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
     
     // Search for songs based on user input
     try {
+      console.log("Searching for songs with query:", input);
       const results = await search(input, 5);
+      console.log("Search results:", results);
       
       setTimeout(() => {
         // Create bot response with song suggestions
@@ -74,10 +77,12 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
         
         const botMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
-          text: botResponses[Math.floor(Math.random() * botResponses.length)],
+          text: results && results.length > 0 
+            ? botResponses[Math.floor(Math.random() * botResponses.length)]
+            : "I couldn't find any songs matching your request. Try connecting to Spotify or try a different search term.",
           sender: 'bot',
           timestamp: new Date(),
-          songSuggestions: results.length > 0 ? results : undefined
+          songSuggestions: results && results.length > 0 ? results : undefined
         };
         
         setMessages(prev => [...prev, botMessage]);
@@ -108,7 +113,16 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
   };
 
   const handlePlaySong = (song: any) => {
+    console.log("Playing song in chatbot:", song);
     setCurrentSong(song);
+    
+    if (!song.previewUrl) {
+      toast({
+        title: "No Preview Available",
+        description: "This song doesn't have a preview. Connect to Spotify to listen to the full track.",
+        variant: "default"
+      });
+    }
   };
 
   return (
@@ -174,7 +188,7 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
                 placeholder="Ask for music recommendations..."
                 className="flex-1"
               />
-              <Button onClick={handleSend} disabled={isTyping}>Send</Button>
+              <Button onClick={handleSend} disabled={isTyping || isLoading}>Send</Button>
             </div>
           </DialogFooter>
         </div>

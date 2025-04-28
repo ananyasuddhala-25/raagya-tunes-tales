@@ -15,10 +15,27 @@ export function useSpotify() {
     
     setIsLoading(true);
     try {
+      console.log(`Searching for: ${query}`);
       const tracks = await searchTracks(query, limit);
-      const formattedTracks = tracks.map(track => transformTrackToSong(track));
       
-      // Include both tracks with and without previews, since we can open them in Spotify
+      if (!tracks || tracks.length === 0) {
+        console.log('No tracks found, using empty array');
+        setSearchResults([]);
+        setIsLoading(false);
+        
+        toast({
+          title: "No Tracks Found",
+          description: "Try searching with different keywords or connect to Spotify",
+          variant: "destructive"
+        });
+        
+        return [];
+      }
+      
+      console.log(`Received ${tracks.length} tracks from search`);
+      const formattedTracks = tracks.map(track => transformTrackToSong(track)).filter(Boolean);
+      
+      console.log(`Formatted ${formattedTracks.length} tracks`);
       setSearchResults(formattedTracks);
       setIsLoading(false);
       
@@ -44,6 +61,11 @@ export function useSpotify() {
   };
   
   const connectToSpotify = () => {
+    toast({
+      title: "Connecting to Spotify",
+      description: "Redirecting to Spotify for authentication...",
+      variant: "default"
+    });
     initiateSpotifyAuth();
   };
   
