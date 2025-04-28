@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { searchTracks, transformTrackToSong } from '@/integrations/spotify/spotify';
+import { searchTracks, transformTrackToSong, initiateSpotifyAuth } from '@/integrations/spotify/spotify';
 import { toast } from '@/hooks/use-toast';
 
 export function useSpotify() {
@@ -43,9 +43,14 @@ export function useSpotify() {
     }
   };
   
+  const connectToSpotify = () => {
+    initiateSpotifyAuth();
+  };
+  
   return {
     search,
     searchResults,
-    isLoading
+    isLoading,
+    connectToSpotify
   };
 }

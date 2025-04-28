@@ -6,7 +6,7 @@ const spotifyApi = new SpotifyWebApi();
 const SPOTIFY_CLIENT_ID = "dd8b5d00327b4d4f802137f8c306fd53";
 
 // Fetch Spotify access token from Supabase edge function
-const getAccessToken = async (authCode?: string): Promise<string | null> => {
+export const getAccessToken = async (authCode?: string): Promise<string | null> => {
   try {
     const { data, error } = await supabase.functions.invoke('get-spotify-token', {
       body: { authCode }

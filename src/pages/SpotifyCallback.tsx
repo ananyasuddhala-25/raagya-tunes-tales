@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAccessToken } from '@/integrations/spotify/spotify';
+import { toast } from '@/hooks/use-toast';
 
 export default function SpotifyCallback() {
   const navigate = useNavigate();
@@ -13,13 +14,32 @@ export default function SpotifyCallback() {
       
       if (code) {
         try {
-          await getAccessToken(code);
+          const token = await getAccessToken(code);
+          if (token) {
+            toast({
+              title: "Spotify Connected",
+              description: "Successfully connected to your Spotify account",
+              variant: "default"
+            });
+          } else {
+            throw new Error("Failed to get token");
+          }
           navigate('/dashboard');
         } catch (error) {
           console.error('Error handling Spotify callback:', error);
+          toast({
+            title: "Connection Failed",
+            description: "Could not connect to Spotify. Please try again.",
+            variant: "destructive"
+          });
           navigate('/');
         }
       } else {
+        toast({
+          title: "Authentication Cancelled",
+          description: "Spotify authentication was cancelled or failed",
+          variant: "default"
+        });
         navigate('/');
       }
     };

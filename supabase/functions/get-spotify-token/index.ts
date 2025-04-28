@@ -31,17 +31,25 @@ serve(async (req) => {
       );
     }
 
+    // Log credential lengths for debugging
+    console.log(`Client ID length: ${SPOTIFY_CLIENT_ID.length}`);
+    console.log(`Client Secret length: ${SPOTIFY_CLIENT_SECRET.length}`);
+
     let tokenResponse;
     
     if (authCode) {
       // Handle user authentication flow
       const redirectUri = 'http://localhost:5173/callback'; // Update this based on your app's URL
       
+      console.log("Using authorization code flow");
+      const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
+      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
+
       tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
+          'Authorization': authHeader
         },
         body: new URLSearchParams({
           grant_type: 'authorization_code',
@@ -51,11 +59,15 @@ serve(async (req) => {
       });
     } else {
       // Client credentials flow for search and preview
+      console.log("Using client credentials flow");
+      const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
+      console.log(`Auth header: ${authHeader.substring(0, 10)}...`);
+
       tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
+          'Authorization': authHeader
         },
         body: 'grant_type=client_credentials'
       });
@@ -66,7 +78,7 @@ serve(async (req) => {
     if (!tokenResponse.ok) {
       console.error("Error response from Spotify:", data);
       return new Response(
-        JSON.stringify({ error: data.error || "Failed to get Spotify token" }),
+        JSON.stringify({ error: data.error || "Failed to get Spotify token", details: data }),
         { 
           status: tokenResponse.status, 
           headers: { ...corsHeaders, "Content-Type": "application/json" }
