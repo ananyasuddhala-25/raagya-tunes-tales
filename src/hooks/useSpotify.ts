@@ -1,11 +1,31 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { searchTracks, transformTrackToSong, initiateSpotifyAuth } from '@/integrations/spotify/spotify';
 import { toast } from '@/hooks/use-toast';
 
 export function useSpotify() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  
+  // Check if user is connected to Spotify on mount
+  useEffect(() => {
+    const checkConnection = () => {
+      const token = localStorage.getItem('spotify_token');
+      const expiresAt = localStorage.getItem('spotify_token_expires');
+      
+      if (token && expiresAt) {
+        const isExpired = parseInt(expiresAt) <= new Date().getTime();
+        setIsConnected(!isExpired);
+        return !isExpired;
+      }
+      
+      return false;
+    };
+    
+    const connected = checkConnection();
+    setIsConnected(connected);
+  }, []);
   
   const search = async (query: string, limit: number = 20) => {
     if (!query.trim()) {
@@ -73,6 +93,7 @@ export function useSpotify() {
     search,
     searchResults,
     isLoading,
-    connectToSpotify
+    connectToSpotify,
+    isConnected
   };
 }

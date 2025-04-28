@@ -1,8 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Make sure to use these environment variables in your Supabase project settings
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID") || "dd8b5d00327b4d4f802137f8c306fd53";
-const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET") || "2a22623b5c3241ff8780144f57643be6";
+const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET") || "";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

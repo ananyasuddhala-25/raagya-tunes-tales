@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Dialog,
   DialogContent, 
@@ -41,8 +41,18 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [currentSong, setCurrentSong] = useState<any>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
   const { search, searchResults, isLoading, connectToSpotify } = useSpotify();
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (scrollRef.current) {
+      setTimeout(() => {
+        scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -75,15 +85,30 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
           `Looking for "${input}"? Check out these tracks:`
         ];
         
-        const botMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          text: results && results.length > 0 
-            ? botResponses[Math.floor(Math.random() * botResponses.length)]
-            : "I couldn't find any songs matching your request. Try connecting to Spotify or try a different search term.",
-          sender: 'bot',
-          timestamp: new Date(),
-          songSuggestions: results && results.length > 0 ? results : undefined
-        };
+        let botMessage: ChatMessage;
+        
+        if (results && results.length > 0) {
+          botMessage = {
+            id: (Date.now() + 1).toString(),
+            text: botResponses[Math.floor(Math.random() * botResponses.length)],
+            sender: 'bot',
+            timestamp: new Date(),
+            songSuggestions: results
+          };
+        } else {
+          botMessage = {
+            id: (Date.now() + 1).toString(),
+            text: "I couldn't find any songs matching your request. Try connecting to Spotify or try a different search term.",
+            sender: 'bot',
+            timestamp: new Date()
+          };
+          
+          toast({
+            title: "No songs found",
+            description: "Try connecting to Spotify for better results or try a different search term.",
+            variant: "default"
+          });
+        }
         
         setMessages(prev => [...prev, botMessage]);
         setIsTyping(false);
@@ -102,6 +127,12 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
         
         setMessages(prev => [...prev, botMessage]);
         setIsTyping(false);
+        
+        toast({
+          title: "Search Failed",
+          description: "Failed to search for songs. Please connect to Spotify.",
+          variant: "destructive"
+        });
       }, 1000);
     }
   };
@@ -152,7 +183,7 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
                   </div>
                   
                   {msg.songSuggestions && msg.songSuggestions.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                       {msg.songSuggestions.map(song => (
                         <MusicCard 
                           key={song.id} 
@@ -176,6 +207,7 @@ export function ChatbotDialog({ isOpen, onClose }: ChatbotDialogProps) {
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 </div>
               )}
+              <div ref={scrollRef} />
             </div>
           </ScrollArea>
           
