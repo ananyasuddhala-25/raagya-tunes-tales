@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { searchTracks, transformTrackToSong, initiateSpotifyAuth } from '@/integrations/spotify/spotify';
+import { searchTracks, transformTrackToSong, initiateSpotifyAuth } from '@/integrations/spotify';
 import { toast } from '@/hooks/use-toast';
 
 export function useSpotify() {
